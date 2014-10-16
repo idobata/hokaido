@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+
+require 'thread'
+require 'drb/drb'
+require 'pty'
+require 'curses'
+require 'thor'
+require 'terminfo'
+
+module Hokaido
+  class CLI < Thor
+    DEFAULT_HOST = 'localhost'
+    DEFAULT_PORT = 4423
+
+    desc :sh, 'Run'
+    def sh(host = DEFAULT_HOST, port = DEFAULT_PORT, command = ENV['SHELL'])
+      Curses.noecho
+
+      window = Curses.stdscr
+
+      read, write, pid = *PTY.getpty(command)
+
+      input_thread = Thread.new {
+        TermInfo.tiocswinsz write, window.maxy.pred, window.maxx.pred
+
+        while c = window.getch
+          write.putc c
+        end
+
+        exit
+      }
+
+      output_thread = Thread.new {
+        nonbloq   = Queue.new
+        serverq = DRbObject.new_with_uri(build_druby_uri(host, port))
+
+        Thread.new {
+          while c = nonbloq.deq
+            serverq.enq c
+          end
+        }
+
+        while c = read.getc
+          $stdout.putc c
+          nonbloq.enq c
+        end
+      }
+
+      Process.waitpid pid
+    end
+
+    desc :server, 'Start server'
+    def server(host = DEFAULT_HOST, port = DEFAULT_PORT)
+      DRb.start_service(build_druby_uri(host, port), Queue.new)
+      DRb.thread.join
+    end
+
+    desc :viewer, 'Open viewer'
+    def viewer(host = DEFAULT_HOST, port = DEFAULT_PORT)
+      queue = DRbObject.new_with_uri(build_druby_uri(host, port))
+
+      while c = queue.deq
+        $stdout.putc c
+      end
+    end
+
+    private
+
+    def build_druby_uri(host, port)
+      "druby://#{host}:#{port}"
+    end
+  end
+end
+
+Hokaido::CLI.start
