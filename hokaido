@@ -29,8 +29,12 @@ module Hokaido
 
       read, write, pid = *PTY.getpty(shell)
 
+      trap :SIGWINCH do
+        TermInfo.tiocswinsz write, *TermInfo.screen_size
+      end
+
       Thread.new {
-        TermInfo.tiocswinsz write, window.maxy.pred, window.maxx.pred
+        TermInfo.tiocswinsz write, *TermInfo.screen_size
 
         while c = window.getch
           write.putc c
