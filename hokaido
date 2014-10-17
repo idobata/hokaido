@@ -9,7 +9,7 @@ require 'terminfo'
 
 module Hokaido
   class CLI < Thor
-    DEFAULT_HOST = 'localhost'
+    DEFAULT_HOST = 0
     DEFAULT_PORT = 4423
 
     desc :sh, 'Run'
