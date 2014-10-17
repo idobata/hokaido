@@ -7,32 +7,39 @@ require 'curses'
 require 'thor'
 require 'terminfo'
 
+# 1. Start server (Anywhere in internet)
+#   hokaido server # on 203.0.113.10:4423
+#
+# 2. Start viewer (Tokyo)
+#   hokaido viewer --host 203.0.113.10
+#
+# 3. Start new live shell (Hokaido!)
+#   hokaido sh --host 203.0.113.10
+#
 module Hokaido
   class CLI < Thor
-    DEFAULT_HOST = 0
-    DEFAULT_PORT = 4423
+    class_option :host, aliases: :h, default: 0
+    class_option :port, aliases: :p, default: 4423
 
-    desc :sh, 'Run'
-    def sh(host = DEFAULT_HOST, port = DEFAULT_PORT, command = ENV['SHELL'])
+    desc :sh, 'Start live shell'
+    def sh(shell = ENV['SHELL'])
       Curses.noecho
 
       window = Curses.stdscr
 
-      read, write, pid = *PTY.getpty(command)
+      read, write, pid = *PTY.getpty(shell)
 
-      input_thread = Thread.new {
+      Thread.new {
         TermInfo.tiocswinsz write, window.maxy.pred, window.maxx.pred
 
         while c = window.getch
           write.putc c
         end
-
-        exit
       }
 
-      output_thread = Thread.new {
+      Thread.new {
         nonbloq = Queue.new
-        client  = TCPSocket.open(host, port)
+        client  = TCPSocket.open(*options.values_at(:host, :port))
 
         Thread.new {
           client.puts 'write'
@@ -52,9 +59,9 @@ module Hokaido
     end
 
     desc :server, 'Start server'
-    def server(host = DEFAULT_HOST, port = DEFAULT_PORT)
+    def server
       queue  = Queue.new
-      server = TCPServer.open(host, port)
+      server = TCPServer.open(*options.values_at(:host, :port))
 
       loop do
         Thread.new server.accept do |client|
@@ -74,18 +81,28 @@ module Hokaido
           else
             client.puts ':('
           end
+
+          client.close
         end
       end
+    rescue Interrupt
+      server.close
+
+      exit
     end
 
     desc :viewer, 'Open viewer'
-    def viewer(host = DEFAULT_HOST, port = DEFAULT_PORT)
-      client = TCPSocket.open(host, port)
+    def viewer
+      client = TCPSocket.open(*options.values_at(:host, :port))
       client.puts 'read'
 
       while c = client.getc
         $stdout.putc c
       end
+    rescue Interrupt
+      client.close
+
+      exit
     end
   end
 end
