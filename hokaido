@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'thread'
-require 'drb/drb'
+require 'socket'
 require 'pty'
 require 'curses'
 require 'thor'
@@ -31,12 +31,14 @@ module Hokaido
       }
 
       output_thread = Thread.new {
-        nonbloq   = Queue.new
-        serverq = DRbObject.new_with_uri(build_druby_uri(host, port))
+        nonbloq = Queue.new
+        client  = TCPSocket.open(host, port)
 
         Thread.new {
+          client.puts 'write'
+
           while c = nonbloq.deq
-            serverq.enq c
+            client.putc c
           end
         }
 
@@ -51,23 +53,39 @@ module Hokaido
 
     desc :server, 'Start server'
     def server(host = DEFAULT_HOST, port = DEFAULT_PORT)
-      DRb.start_service(build_druby_uri(host, port), Queue.new)
-      DRb.thread.join
+      queue  = Queue.new
+      server = TCPServer.open(host, port)
+
+      loop do
+        Thread.new server.accept do |client|
+          case client.gets.chomp
+          when 'write'
+            client.puts ':)'
+
+            while c = client.getc
+              queue.enq c
+            end
+          when 'read'
+            client.puts '=)'
+
+            while c = queue.deq
+              client.putc c
+            end
+          else
+            client.puts ':('
+          end
+        end
+      end
     end
 
     desc :viewer, 'Open viewer'
     def viewer(host = DEFAULT_HOST, port = DEFAULT_PORT)
-      queue = DRbObject.new_with_uri(build_druby_uri(host, port))
+      client = TCPSocket.open(host, port)
+      client.puts 'read'
 
-      while c = queue.deq
+      while c = client.getc
         $stdout.putc c
       end
-    end
-
-    private
-
-    def build_druby_uri(host, port)
-      "druby://#{host}:#{port}"
     end
   end
 end
