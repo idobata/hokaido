@@ -24,6 +24,7 @@ module Hokaido
     desc :sh, 'Start live shell'
     def sh(shell = ENV['SHELL'])
       Curses.noecho
+      Curses.raw
 
       window = Curses.stdscr
 
@@ -44,10 +45,6 @@ module Hokaido
       Thread.new {
         nonbloq = Queue.new
         client  = TCPSocket.open(*options.values_at(:host, :port))
-
-        trap :SIGINT do
-          nonbloq.enq "\C-c"
-        end
 
         Thread.new {
           client.puts 'write'
