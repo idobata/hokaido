@@ -33,6 +33,10 @@ module Hokaido
         TermInfo.tiocswinsz write, *TermInfo.screen_size
       end
 
+      trap :SIGINT do
+        # NOP
+      end
+
       Thread.new {
         TermInfo.tiocswinsz write, *TermInfo.screen_size
 
