@@ -33,10 +33,6 @@ module Hokaido
         TermInfo.tiocswinsz write, *TermInfo.screen_size
       end
 
-      trap :SIGINT do
-        # NOP
-      end
-
       Thread.new {
         TermInfo.tiocswinsz write, *TermInfo.screen_size
 
@@ -48,6 +44,10 @@ module Hokaido
       Thread.new {
         nonbloq = Queue.new
         client  = TCPSocket.open(*options.values_at(:host, :port))
+
+        trap :SIGINT do
+          nonbloq.enq "\C-c"
+        end
 
         Thread.new {
           client.puts 'write'
