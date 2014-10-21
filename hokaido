@@ -3,7 +3,7 @@
 require 'thread'
 require 'socket'
 require 'pty'
-require 'curses'
+require 'io/console'
 require 'thor'
 require 'terminfo'
 
@@ -23,13 +23,6 @@ module Hokaido
 
     desc :sh, 'Start live shell'
     def sh(shell = ENV['SHELL'])
-      Curses.noecho # Curses shouldn't render any chars
-      Curses.raw    # raw-mode: prevent ctrl-c handling
-      Curses.cbreak # Disable keyboard buffering
-      Curses.nonl   # Enter: CR (Ctrl-m)
-
-      window = Curses.stdscr
-
       read, write, pid = *PTY.getpty(shell)
 
       nonbloq = Queue.new
@@ -53,7 +46,7 @@ module Hokaido
       Thread.start do
         TermInfo.tiocswinsz write, *TermInfo.screen_size
 
-        while c = window.getch
+        while c = $stdin.getch
           write.putc c
         end
       end
@@ -63,9 +56,6 @@ module Hokaido
       end
 
       Process.waitpid pid
-    ensure
-      window.close
-      Curses.close_screen
     end
 
     desc :server, 'Start server'
