@@ -19,6 +19,8 @@ module Hokaido
         TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
       end
 
+      Thread.abort_on_exception = true
+
       Thread.start do
         client = TCPSocket.open(*options.values_at(:host, :port))
         client.puts 'write'
