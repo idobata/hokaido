@@ -23,18 +23,34 @@ module Hokaido
 
     desc :sh, 'Start live shell'
     def sh(shell = ENV['SHELL'])
-      Curses.noecho
-      Curses.raw
+      Curses.noecho # Curses shouldn't render any chars
+      Curses.raw    # raw-mode: prevent ctrl-c handling
+      Curses.cbreak # Disable keyboard buffering
+      Curses.nonl   # Enter: CR (Ctrl-m)
 
       window = Curses.stdscr
 
       read, write, pid = *PTY.getpty(shell)
 
-      trap :SIGWINCH do
-        TermInfo.tiocswinsz write, *TermInfo.screen_size
-      end
+      nonbloq = Queue.new
+      client  = TCPSocket.open(*options.values_at(:host, :port))
 
-      Thread.new {
+      Thread.start {
+        client.puts 'write'
+
+        while c = nonbloq.deq
+          client.putc c
+        end
+      }
+
+      Thread.start {
+        while c = read.getc
+          $stdout.putc c
+          nonbloq.enq c
+        end
+      }
+
+      Thread.start {
         TermInfo.tiocswinsz write, *TermInfo.screen_size
 
         while c = window.getch
@@ -42,25 +58,14 @@ module Hokaido
         end
       }
 
-      Thread.new {
-        nonbloq = Queue.new
-        client  = TCPSocket.open(*options.values_at(:host, :port))
-
-        Thread.new {
-          client.puts 'write'
-
-          while c = nonbloq.deq
-            client.putc c
-          end
-        }
-
-        while c = read.getc
-          $stdout.putc c
-          nonbloq.enq c
-        end
-      }
+      trap :SIGWINCH do
+        TermInfo.tiocswinsz write, *TermInfo.screen_size
+      end
 
       Process.waitpid pid
+    ensure
+      window.close
+      Curses.close_screen
     end
 
     desc :server, 'Start server'
@@ -69,7 +74,7 @@ module Hokaido
       server = TCPServer.open(*options.values_at(:host, :port))
 
       loop do
-        Thread.new server.accept do |client|
+        Thread.start server.accept do |client|
           case client.gets.chomp
           when 'write'
             client.puts ':)'
