@@ -6,14 +6,14 @@
 $ hokaido server # on 203.0.113.10:4423
 ```
 
-## 2. Start viewer (Tokyo)
+## 2. Watch (Tokyo)
 
 ``` sh
-$ hokaido viewer --host 203.0.113.10
+$ hokaido watch --host 203.0.113.10
 ```
 
-## 3. Start new live shell (Hokaido!)
+## 3. Broadcast (Hokaido!)
 
 ``` sh
-$ hokaido sh --host 203.0.113.10
+$ hokaido broadcast --host 203.0.113.10
 ```
