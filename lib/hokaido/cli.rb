@@ -7,7 +7,7 @@ require 'thread'
 
 module Hokaido
   class CLI < Thor
-    class_option :host, aliases: :h, default: 0
+    class_option :host, aliases: :h, default: '0.0.0.0'
     class_option :port, aliases: :p, default: 4423
 
     desc :sh, 'Start live shell'
