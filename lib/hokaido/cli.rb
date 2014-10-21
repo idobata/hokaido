@@ -1,21 +1,10 @@
-#!/usr/bin/env ruby
-
-require 'thread'
-require 'socket'
-require 'pty'
 require 'io/console'
-require 'thor'
+require 'pty'
+require 'socket'
 require 'terminfo'
+require 'thor'
+require 'thread'
 
-# 1. Start server (Anywhere in internet)
-#   hokaido server # on 203.0.113.10:4423
-#
-# 2. Start viewer (Tokyo)
-#   hokaido viewer --host 203.0.113.10
-#
-# 3. Start new live shell (Hokaido!)
-#   hokaido sh --host 203.0.113.10
-#
 module Hokaido
   class CLI < Thor
     class_option :host, aliases: :h, default: 0
@@ -105,5 +94,3 @@ module Hokaido
     end
   end
 end
-
-Hokaido::CLI.start
