@@ -35,28 +35,28 @@ module Hokaido
       nonbloq = Queue.new
       client  = TCPSocket.open(*options.values_at(:host, :port))
 
-      Thread.start {
+      Thread.start do
         client.puts 'write'
 
         while c = nonbloq.deq
           client.putc c
         end
-      }
+      end
 
-      Thread.start {
+      Thread.start do
         while c = read.getc
           $stdout.putc c
           nonbloq.enq c
         end
-      }
+      end
 
-      Thread.start {
+      Thread.start do
         TermInfo.tiocswinsz write, *TermInfo.screen_size
 
         while c = window.getch
           write.putc c
         end
-      }
+      end
 
       trap :SIGWINCH do
         TermInfo.tiocswinsz write, *TermInfo.screen_size
