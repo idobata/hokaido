@@ -10,9 +10,9 @@ module Hokaido
     class_option :host, aliases: :h, default: '0.0.0.0'
     class_option :port, aliases: :p, default: 4423
 
-    desc :sh, 'Start live shell'
-    def sh(shell = ENV['SHELL'])
-      pty_out, pty_in, pid = *PTY.getpty(shell)
+    desc :broadcast, 'Broadcast a session'
+    def broadcast(command = ENV['SHELL'])
+      pty_out, pty_in, pid = *PTY.getpty(command)
       nonbloq              = Queue.new
 
       trap :SIGWINCH do
@@ -22,11 +22,11 @@ module Hokaido
       Thread.abort_on_exception = true
 
       Thread.start do
-        client = TCPSocket.open(*options.values_at(:host, :port))
-        client.puts 'write'
+        server = TCPSocket.open(*options.values_at(:host, :port))
+        server.puts 'write'
 
         while c = nonbloq.deq
-          client.putc c
+          server.putc c
         end
       end
 
@@ -81,16 +81,16 @@ module Hokaido
       exit
     end
 
-    desc :viewer, 'Open viewer'
-    def viewer
-      client = TCPSocket.open(*options.values_at(:host, :port))
-      client.puts 'read'
+    desc :watch, 'Watch a session'
+    def watch
+      server = TCPSocket.open(*options.values_at(:host, :port))
+      server.puts 'read'
 
-      while c = client.getc
+      while c = server.getc
         $stdout.putc c
       end
     rescue Interrupt
-      client.close
+      server.close
 
       exit
     end
