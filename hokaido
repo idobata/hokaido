@@ -23,12 +23,15 @@ module Hokaido
 
     desc :sh, 'Start live shell'
     def sh(shell = ENV['SHELL'])
-      read, write, pid = *PTY.getpty(shell)
+      pty_out, pty_in, pid = *PTY.getpty(shell)
+      nonbloq              = Queue.new
 
-      nonbloq = Queue.new
-      client  = TCPSocket.open(*options.values_at(:host, :port))
+      trap :SIGWINCH do
+        TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
+      end
 
       Thread.start do
+        client = TCPSocket.open(*options.values_at(:host, :port))
         client.puts 'write'
 
         while c = nonbloq.deq
@@ -37,22 +40,18 @@ module Hokaido
       end
 
       Thread.start do
-        while c = read.getc
+        while c = pty_out.getc
           $stdout.putc c
           nonbloq.enq c
         end
       end
 
       Thread.start do
-        TermInfo.tiocswinsz write, *TermInfo.screen_size
+        TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
 
         while c = $stdin.getch
-          write.putc c
+          pty_in.putc c
         end
-      end
-
-      trap :SIGWINCH do
-        TermInfo.tiocswinsz write, *TermInfo.screen_size
       end
 
       Process.waitpid pid
