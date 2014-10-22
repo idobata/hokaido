@@ -25,23 +25,23 @@ module Hokaido
         server = TCPSocket.open(*options.values_at(:host, :port))
         server.puts 'write'
 
-        while c = nonbloq.deq
-          server.putc c
+        while chunk = nonbloq.deq
+          server.write chunk
         end
       end
 
       Thread.start do
-        while c = pty_out.getc
-          $stdout.putc c
-          nonbloq.enq c
+        while chunk = pty_out.readpartial(4096)
+          $stdout.write chunk
+          nonbloq.enq chunk
         end
       end
 
       Thread.start do
         TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
 
-        while c = $stdin.getch
-          pty_in.putc c
+        while char = $stdin.getch
+          pty_in.putc char
         end
       end
 
@@ -59,14 +59,14 @@ module Hokaido
           when 'write'
             client.puts ':)'
 
-            while c = client.getc
-              queue.enq c
+            while chunk = client.readpartial(4096)
+              queue.enq chunk
             end
           when 'read'
             client.puts '=)'
 
-            while c = queue.deq
-              client.putc c
+            while chunk = queue.deq
+              client.write chunk
             end
           else
             client.puts ':('
@@ -86,8 +86,8 @@ module Hokaido
       server = TCPSocket.open(*options.values_at(:host, :port))
       server.puts 'read'
 
-      while c = server.getc
-        $stdout.putc c
+      while chunk = server.readpartial(4096)
+        $stdout.write chunk
       end
     rescue Interrupt
       server.close
