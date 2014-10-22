@@ -4,6 +4,7 @@ require 'socket'
 require 'terminfo'
 require 'thor'
 require 'thread'
+require 'celluloid/autostart'
 
 module Hokaido
   class CLI < Thor
@@ -23,7 +24,7 @@ module Hokaido
 
       Thread.start do
         server = TCPSocket.open(*options.values_at(:host, :port))
-        server.puts 'write'
+        server.puts 'broadcast'
 
         while chunk = nonbloq.deq
           server.write chunk
@@ -50,41 +51,17 @@ module Hokaido
 
     desc :server, 'Start server'
     def server
-      queue  = Queue.new
-      server = TCPServer.open(*options.values_at(:host, :port))
-
-      loop do
-        Thread.start server.accept do |client|
-          case client.gets.chomp
-          when 'write'
-            client.puts ':)'
-
-            while chunk = client.readpartial(4096)
-              queue.enq chunk
-            end
-          when 'read'
-            client.puts '=)'
-
-            while chunk = queue.deq
-              client.write chunk
-            end
-          else
-            client.puts ':('
-          end
-
-          client.close
-        end
-      end
+      server = Server.run(*options.values_at(:host, :port))
     rescue Interrupt
-      server.close
-
       exit
+    ensure
+      server.terminate if server
     end
 
     desc :watch, 'Watch a session'
     def watch
       server = TCPSocket.open(*options.values_at(:host, :port))
-      server.puts 'read'
+      server.puts 'watch'
 
       while chunk = server.readpartial(4096)
         $stdout.write chunk
