@@ -1,15 +1,16 @@
-require 'celluloid/io'
+require 'celluloid'
 require 'celluloid/notifications'
+require 'socket'
 
 module Hokaido
   class Server
-    include Celluloid::IO
+    include Celluloid
     include Celluloid::Notifications
 
     finalizer :shutdown
 
     def initialize(host, port)
-      @server = Celluloid::IO::TCPServer.new(host, port)
+      @server = TCPServer.new(host, port)
 
       async.run
     end

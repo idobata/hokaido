@@ -1,10 +1,7 @@
-require 'io/console'
-require 'pty'
+require 'celluloid/autostart'
 require 'socket'
 require 'terminfo'
 require 'thor'
-require 'thread'
-require 'celluloid/autostart'
 
 module Hokaido
   class CLI < Thor
@@ -13,40 +10,7 @@ module Hokaido
 
     desc :broadcast, 'Broadcast a session'
     def broadcast(command = ENV['SHELL'])
-      pty_out, pty_in, pid = *PTY.getpty(command)
-      nonbloq              = Queue.new
-
-      trap :SIGWINCH do
-        TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
-      end
-
-      Thread.abort_on_exception = true
-
-      Thread.start do
-        server = TCPSocket.open(*options.values_at(:host, :port))
-        server.puts 'broadcast'
-
-        while chunk = nonbloq.deq
-          server.write chunk
-        end
-      end
-
-      Thread.start do
-        while chunk = pty_out.readpartial(4096)
-          $stdout.write chunk
-          nonbloq.enq chunk
-        end
-      end
-
-      Thread.start do
-        TermInfo.tiocswinsz pty_in, *TermInfo.screen_size
-
-        while char = $stdin.getch
-          pty_in.putc char
-        end
-      end
-
-      Process.waitpid pid
+      Hokaido::Broadcast::Command.run command, *options.values_at(:host, :port)
     end
 
     desc :server, 'Start server'
