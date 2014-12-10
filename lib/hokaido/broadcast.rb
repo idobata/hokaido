@@ -20,6 +20,43 @@ module Hokaido
       end
     end
 
+    class OutputHandler
+      include Celluloid
+
+      def initialize(ptyout, connection)
+        @ptyout, @connection = ptyout, connection
+
+        async.run
+      end
+
+      def run
+        while chunk = @ptyout.readpartial(4096)
+          $stdout.write chunk
+          @connection.async.send chunk
+        end
+
+        terminate
+      end
+    end
+
+    class InputHandler
+      include Celluloid
+
+      def initialize(ptyin)
+        @ptyin = ptyin
+
+        async.run
+      end
+
+      def run
+        while char = $stdin.getch
+          @ptyin.putc char
+        end
+
+        terminate
+      end
+    end
+
     class Command
       include Celluloid
 
@@ -27,22 +64,10 @@ module Hokaido
         ptyout, ptyin, pid = PTY.getpty(command)
         connection         = Connection.new_link(host, port)
 
-        async.handle_output ptyout, connection
-        async.handle_input  ptyin
+        OutputHandler.new_link ptyout, connection
+        InputHandler.new_link ptyin
+
         async.wait_for_exit pid
-      end
-
-      def handle_output(ptyout, connection)
-        while chunk = ptyout.readpartial(4096)
-          $stdout.write chunk
-          connection.async.send chunk
-        end
-      end
-
-      def handle_input(ptyin)
-        while char = $stdin.getch
-          ptyin.putc char
-        end
       end
 
       def wait_for_exit(pid)

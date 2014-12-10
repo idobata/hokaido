@@ -3,9 +3,50 @@ require 'celluloid/notifications'
 require 'socket'
 
 module Hokaido
-  class Server
+  class ConnectionHandler
     include Celluloid
     include Celluloid::Notifications
+
+    def initialize(connection)
+      @connection = connection
+
+      async.run
+    end
+
+    def run
+      _, port, host = @connection.peeraddr
+
+      puts "#{host}:#{port} connected"
+
+      case @connection.gets.chomp
+      when 'broadcast'
+        @connection.puts ':)'
+
+        loop do
+          publish 'broadcast', @connection.readpartial(4096)
+        end
+      when 'watch'
+        @connection.puts '=)'
+
+        watcher = Watcher.new_link(@connection)
+
+        loop do
+          @connection.readpartial(4096) # XXX wait for connection closed
+        end
+      else
+        @connection.puts ':('
+      end
+    rescue Errno::ECONNRESET
+      # do nothing, connetion reset by peer
+    ensure
+      puts "#{host}:#{port} disconnected"
+
+      @connection.close
+    end
+  end
+
+  class Server
+    include Celluloid
 
     finalizer :shutdown
 
@@ -21,39 +62,8 @@ module Hokaido
 
     def run
       loop do
-        async.handle_connection @server.accept
+        ConnectionHandler.new_link @server.accept
       end
-    end
-
-    def handle_connection(client)
-      _, port, host = client.peeraddr
-
-      puts "#{host}:#{port} connected"
-
-      case client.gets.chomp
-      when 'broadcast'
-        client.puts ':)'
-
-        loop do
-          publish 'broadcast', client.readpartial(4096)
-        end
-      when 'watch'
-        client.puts '=)'
-
-        watcher = Watcher.new_link(client)
-
-        loop do
-          client.readpartial(4096) # XXX wait for connection closed
-        end
-      else
-        client.puts ':('
-      end
-    rescue Errno::ECONNRESET
-      # do nothing, connetion reset by peer
-    ensure
-      puts "#{host}:#{port} disconnected"
-
-      client.close
     end
   end
 end
