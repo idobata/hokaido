@@ -64,6 +64,9 @@ module Hokaido
         ptyout, ptyin, pid = PTY.getpty(command)
         connection         = Connection.new_link(host, port)
 
+        # FIXME: adjust on SIGWINCH
+        adjust_screen_size ptyin
+
         OutputHandler.new_link ptyout, connection
         InputHandler.new_link ptyin
 
@@ -74,6 +77,12 @@ module Hokaido
         Process.waitpid pid
 
         terminate
+      end
+
+      private
+
+      def adjust_screen_size(ptyin)
+        TermInfo.tiocswinsz ptyin, *TermInfo.screen_size
       end
     end
   end
