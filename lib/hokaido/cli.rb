@@ -8,6 +8,8 @@ module Hokaido
     class_option :host, aliases: :h, default: '0.0.0.0'
     class_option :port, aliases: :p, default: 4423
 
+    map '-v' => :version
+
     desc :broadcast, 'Broadcast a session'
     def broadcast(command = ENV['SHELL'])
       Hokaido::Broadcast::Command.run command, *options.values_at(:host, :port)
@@ -34,6 +36,11 @@ module Hokaido
       server.close
 
       exit
+    end
+
+    desc :version, 'Show hokaido version'
+    def version
+      say Hokaido::VERSION, :cyan
     end
   end
 end
