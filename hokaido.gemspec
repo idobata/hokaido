@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'hokaido/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "hokaido"
+  spec.name          = 'hokaido'
   spec.version       = Hokaido::VERSION
   spec.authors       = %w(ursm hibariya)
   spec.email         = %w(ursm@ursm.jp celluloid.key@gmail.com)
