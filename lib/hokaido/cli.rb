@@ -32,10 +32,10 @@ module Hokaido
       while chunk = server.readpartial(4096)
         $stdout.write chunk
       end
-    rescue Interrupt
-      server.close
-
-      exit
+    rescue Interrupt, EOFError, Errno::EIO
+      # do nothing
+    ensure
+      server.close if server
     end
 
     desc :version, 'Show hokaido version'

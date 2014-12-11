@@ -34,7 +34,9 @@ module Hokaido
           $stdout.write chunk
           @connection.async.send chunk
         end
-
+      rescue EOFError, Errno::EIO
+        # do nothing
+      ensure
         terminate
       end
     end

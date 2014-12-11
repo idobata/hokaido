@@ -22,22 +22,20 @@ module Hokaido
       when 'broadcast'
         @connection.puts ':)'
 
-        loop do
-          publish 'broadcast', @connection.readpartial(4096)
+        while chunk = @connection.readpartial(4096)
+          publish 'broadcast', chunk
         end
       when 'watch'
         @connection.puts '=)'
 
-        watcher = Watcher.new_link(@connection)
+        Watcher.new(@connection).link Actor.current
 
-        loop do
-          @connection.readpartial(4096) # XXX wait for connection closed
-        end
+        Kernel.sleep
       else
         @connection.puts ':('
       end
-    rescue Errno::ECONNRESET
-      # do nothing, connetion reset by peer
+    rescue EOFError, Errno::EIO, Errno::ECONNRESET
+      # do nothing
     ensure
       puts "#{host}:#{port} disconnected"
 
@@ -62,7 +60,7 @@ module Hokaido
 
     def run
       loop do
-        ConnectionHandler.new_link @server.accept
+        ConnectionHandler.new(@server.accept).link Actor.current
       end
     end
   end
