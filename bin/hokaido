@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'hokaido/cli'
+require 'hokaido'
 
 Hokaido::CLI.start
