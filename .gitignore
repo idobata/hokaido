@@ -1,2 +1,5 @@
 Gemfile.lock
+Cargo.lock
+target
 pkg/*
+**/*.o
