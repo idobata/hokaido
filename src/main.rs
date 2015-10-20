@@ -1,4 +1,3 @@
-#![feature(static_recursion)]
 extern crate docopt;
 extern crate libc;
 extern crate nix;
