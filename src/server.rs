@@ -118,6 +118,17 @@ impl WatchHandler {
     fn process(&mut self) {
         message::JoinResponse::Success.send(&mut self.stream).unwrap();
 
-        self.channel.lock().unwrap().watchers.push(self.stream.try_clone().unwrap());
+        match self.channel.lock() {
+            Ok(mut channel) => {
+                channel.watchers.push(self.stream.try_clone().unwrap());
+
+                match channel.broadcaster.as_mut() {
+                    Some(mut broadcaster) => message::Notification::WatcherJoined("".to_string()).send(&mut broadcaster).unwrap(),
+                    None                  => ()
+                }
+            },
+            Err(e) => panic!("{}", e)
+        }
+
     }
 }

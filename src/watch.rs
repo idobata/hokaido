@@ -31,6 +31,7 @@ impl NotificationHandler {
             match notification {
                 message::Notification::Output(data)   => self.handle_output(&data),
                 message::Notification::Closed(reason) => self.handle_closed(&reason),
+                _ => (),
             };
         }
     }

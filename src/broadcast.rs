@@ -28,6 +28,9 @@ pub fn execute(host: String, port: i32, channel_name: String) {
     ResizeHandler::spawn(&child, &sender);
     NotificationHandler::spawn(&stream, &sender);
 
+
+    sender.send(build_winsize_notification()).unwrap();
+
     for message in receiver {
         match message {
             Some(notification) => notification.send(&mut stream).unwrap(),
@@ -37,6 +40,13 @@ pub fn execute(host: String, port: i32, channel_name: String) {
 
     child.wait().unwrap();
     tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios).unwrap();
+}
+
+fn build_winsize_notification() -> Option<message::Notification> {
+    let winsize      = winsize::from_fd(libc::STDIN_FILENO).unwrap();
+    let notification = message::Notification::Output(format!("\x1b[8;{};{}t", winsize.ws_row, winsize.ws_col));
+
+    Some(notification)
 }
 
 static mut sigwinch_count: i32 = 0;
@@ -168,10 +178,9 @@ impl ResizeHandler {
     }
 
     fn handle_resize(&self, winsize: &libc_ext::Winsize) {
-        let pty          = self.child.pty().unwrap();
-        let notification = message::Notification::Output(format!("\x1b[8;{};{}t", winsize.ws_row, winsize.ws_col));
+        let pty = self.child.pty().unwrap();
 
-        self.sender.send(Some(notification)).unwrap();
+        self.sender.send(build_winsize_notification()).unwrap();
         winsize::set(pty.as_raw_fd(), winsize);
     }
 }
@@ -195,7 +204,10 @@ impl NotificationHandler {
 
                     break;
                 },
-                _ => continue
+                message::Notification::WatcherJoined(_) => {
+                    self.sender.send(build_winsize_notification()).unwrap();
+                },
+                _ => ()
             }
         }
     }

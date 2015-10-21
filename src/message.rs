@@ -17,6 +17,7 @@ pub enum JoinResponse {
 pub enum Notification {
     Output(String),
     Closed(String),
+    WatcherJoined(String),
 }
 
 #[derive(Debug)]
@@ -57,7 +58,7 @@ impl JoinRequest {
 
         match *self {
             JoinRequest::Broadcast(ref string) => (header, id, "broadcast", string),
-            JoinRequest::Watch(ref string)     => (header, id, "watch", string),
+            JoinRequest::Watch(ref string)     => (header, id, "watch",     string),
         }
     }
 }
@@ -106,9 +107,10 @@ impl Notification {
                 let (_, topic, data): (u8, String, String) = message;
 
                 match topic.as_ref() {
-                    "out"    => Ok(Notification::Output(data)),
-                    "closed" => Ok(Notification::Closed(data)),
-                    _        => Err(Error::UnknownMessage)
+                    "out"            => Ok(Notification::Output(data)),
+                    "closed"         => Ok(Notification::Closed(data)),
+                    "watcher_joined" => Ok(Notification::WatcherJoined(data)),
+                    _                => Err(Error::UnknownMessage)
                 }
 
             },
@@ -126,8 +128,9 @@ impl Notification {
         let header = 2u8;
 
         match *self {
-            Notification::Output(ref string) => (header, "out", string),
-            Notification::Closed(ref string) => (header, "closed", string),
+            Notification::Output(ref string)        => (header, "out",            string),
+            Notification::Closed(ref string)        => (header, "closed",         string),
+            Notification::WatcherJoined(ref string) => (header, "watcher_joined", string),
         }
     }
 }
