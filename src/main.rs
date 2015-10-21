@@ -27,7 +27,7 @@ Options:
   -h --help            Show this screen.
   -v --version         Show the version of hokaido.
   --host=<host>        Server name     [default: localhost].
-  --port=<port>        Port number     [default: 4747].
+  --port=<port>        Port number     [default: 4423].
   --channel=<channel>  channelnel name [default: default].
 ";
 
