@@ -18,7 +18,6 @@ use docopt::Docopt;
 
 static USAGE: &'static str ="
 Usage:
-  hokaido <command>
   hokaido <command> [--host=<host>] [--port=<port>] [--channel=<channel>]
   hokaido (-h | --help)
   hokaido (-v | --version)
