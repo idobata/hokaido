@@ -2,7 +2,7 @@ extern crate docopt;
 extern crate libc;
 extern crate nix;
 extern crate pty;
-extern crate rmp_serialize as msgpack;
+extern crate rmp as msgpack;
 extern crate rustc_serialize;
 extern crate termios;
 
