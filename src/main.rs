@@ -25,9 +25,9 @@ Usage:
 Options:
   -h --help            Show this screen.
   -v --version         Show the version of hokaido.
-  --host=<host>        Server name     [default: localhost].
-  --port=<port>        Port number     [default: 4423].
-  --channel=<channel>  channelnel name [default: default].
+  --host=<host>        Server name  [default: 0.0.0.0].
+  --port=<port>        Server port  [default: 4423].
+  --channel=<channel>  Channel Name [default: default].
 ";
 
 #[derive(RustcDecodable, Debug)]
