@@ -28,7 +28,6 @@ pub fn execute(host: String, port: i32, channel_name: String) {
     ResizeHandler::spawn(&child, &sender);
     NotificationHandler::spawn(&stream, &sender);
 
-
     sender.send(build_winsize_notification()).unwrap();
 
     for message in receiver {

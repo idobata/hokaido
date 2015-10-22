@@ -129,6 +129,5 @@ impl WatchHandler {
             },
             Err(e) => panic!("{}", e)
         }
-
     }
 }
