@@ -11,8 +11,8 @@ keywords = ["terminal", "tool"]
 [dependencies]
 docopt='0.6'
 libc='0.1.8'
+nix="0.3.9"
 pty='0.1.5'
+rmp-serialize = "0.7"
 rustc-serialize='0.3'
 termios='0.2.0'
-rmp = "0.6"
-nix="0.3.9"

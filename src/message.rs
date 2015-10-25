@@ -22,8 +22,8 @@ pub enum Notification {
 
 #[derive(Debug)]
 pub enum Error {
-    EncodeError(msgpack::encode::serialize::Error),
-    DecodeError(msgpack::decode::serialize::Error),
+    EncodeError(msgpack::encode::Error),
+    DecodeError(msgpack::decode::Error),
     UnknownMessage,
 }
 
@@ -155,14 +155,14 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<msgpack::encode::serialize::Error> for Error {
-    fn from(err: msgpack::encode::serialize::Error) -> Error {
+impl From<msgpack::encode::Error> for Error {
+    fn from(err: msgpack::encode::Error) -> Error {
         Error::EncodeError(err)
     }
 }
 
-impl From<msgpack::decode::serialize::Error> for Error {
-    fn from(err: msgpack::decode::serialize::Error) -> Error {
+impl From<msgpack::decode::Error> for Error {
+    fn from(err: msgpack::decode::Error) -> Error {
         Error::DecodeError(err)
     }
 }
