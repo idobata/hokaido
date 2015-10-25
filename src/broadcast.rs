@@ -85,13 +85,12 @@ impl InputHandler {
 
     fn process(&mut self) {
         let mut pty = self.child.pty().unwrap();
+        let mut buf = [0; 128];
 
         loop {
-            let mut buf = vec![0; 128];
-            let nread   = self.input.read(&mut buf[..]).unwrap();
+            let nread = self.input.read(&mut buf).unwrap();
 
-            buf.truncate(nread as usize);
-            pty.write(&buf).unwrap();
+            pty.write(&buf[..nread]).unwrap();
         }
     }
 }
@@ -107,29 +106,28 @@ impl OutputHandler {
 
     fn process(&mut self) {
         let mut pty = self.child.pty().unwrap();
+        let mut buf = [0; 128];
 
         loop {
-            let mut buf = vec![0; 128];
+            let nread = pty.read(&mut buf).unwrap();
 
-            if pty.read(&mut buf).unwrap() <= 0 {
+            if nread <= 0 {
                 break;
             } else {
-                let string = String::from_utf8_lossy(&buf[..]).into_owned();
+                let string = String::from_utf8_lossy(&buf[..nread]).into_owned();
 
-                self.handle_output(&string);
+                self.handle_output(string);
             }
         }
 
         self.handle_terminate();
     }
 
-    fn handle_output(&mut self, string: &String) {
-        let notification = message::Notification::Output(string.clone());
-
+    fn handle_output(&mut self, string: String) {
         print!("{}", string);
         self.output.flush().unwrap();
 
-        self.sender.send(Some(notification)).unwrap();
+        self.sender.send(Some(message::Notification::Output(string))).unwrap();
     }
 
     fn handle_terminate(&self) {
