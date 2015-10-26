@@ -109,7 +109,7 @@ impl OutputHandler {
         let mut buf = [0; 128];
 
         loop {
-            let nread = pty.read(&mut buf).unwrap();
+            let nread = pty.read(&mut buf).unwrap_or(0);
 
             if nread <= 0 {
                 break;
@@ -127,11 +127,11 @@ impl OutputHandler {
         print!("{}", string);
         self.output.flush().unwrap();
 
-        self.sender.send(Some(message::Notification::Output(string))).unwrap();
+        let _ = self.sender.send(Some(message::Notification::Output(string)));
     }
 
     fn handle_terminate(&self) {
-        self.sender.send(None).unwrap();
+        let _ = self.sender.send(None);
     }
 }
 
