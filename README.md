@@ -2,6 +2,12 @@
 
 Hokaido is a character based terminal sharing tool. It's speedy and clear.
 
+## Installation
+
+``` sh
+$ cargo install hokaido
+```
+
 ## How to use
 
 ### 1. Start server
