@@ -1,6 +1,13 @@
 use libc;
 
+#[cfg(target_os="macos")]
+pub const TIOCGWINSZ: libc::c_ulonglong = 0x5413;
+#[cfg(target_os="macos")]
+pub const TIOCSWINSZ: libc::c_ulonglong = 0x5414;
+
+#[cfg(target_os="linux")]
 pub const TIOCGWINSZ: libc::c_int = 0x5413;
+#[cfg(target_os="linux")]
 pub const TIOCSWINSZ: libc::c_int = 0x5414;
 
 #[repr(C)]
