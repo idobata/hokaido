@@ -29,27 +29,19 @@ pub enum Error {
 
 impl JoinRequest {
     pub fn receive(stream: &TcpStream) -> Result<JoinRequest, Error> {
-        let mut decoder = Decoder::new(stream);
+        let (_, _, role, channel_name): (u8, u8, String, String) = try!(Decodable::decode(&mut Decoder::new(stream)));
 
-        match Decodable::decode(&mut decoder) {
-            Ok(message) => {
-                let (_, _, role, channel_name): (u8, u8, String, String) = message;
-
-                match role.as_ref() {
-                    "broadcast" => Ok(JoinRequest::Broadcast(channel_name)),
-                    "watch"     => Ok(JoinRequest::Watch(channel_name)),
-                    _           => Err(Error::UnknownMessage)
-                }
-
-            },
-            Err(e) => Err(Error::from(e))
+        match role.as_ref() {
+            "broadcast" => Ok(JoinRequest::Broadcast(channel_name)),
+            "watch"     => Ok(JoinRequest::Watch(channel_name)),
+            _           => Err(Error::UnknownMessage)
         }
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
         let mut encoder = Encoder::new(&mut *stream);
 
-        self.payload().encode(&mut encoder).or_else(|e| Err(Error::from(e)))
+        Ok(try!(self.payload().encode(&mut encoder)))
     }
 
     fn payload(&self) -> (u8, u8, &str, &String) {
@@ -65,26 +57,18 @@ impl JoinRequest {
 
 impl JoinResponse {
     pub fn receive(stream: &TcpStream) -> Result<JoinResponse, Error> {
-        let mut decoder = Decoder::new(stream);
+        let (_, _, _, result): (u8, u8, String, bool) = try!(Decodable::decode(&mut Decoder::new(stream)));
 
-        match Decodable::decode(&mut decoder) {
-            Ok(message) => {
-                let (_, _, _, result): (u8, u8, String, bool) = message;
-
-                match result {
-                    true  => Ok(JoinResponse::Success),
-                    false => Ok(JoinResponse::Failure),
-                }
-
-            },
-            Err(e) => Err(Error::from(e))
+        match result {
+            true  => Ok(JoinResponse::Success),
+            false => Ok(JoinResponse::Failure),
         }
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
         let mut encoder = Encoder::new(&mut *stream);
 
-        self.payload().encode(&mut encoder).or_else(|e| Err(Error::from(e)))
+        Ok(try!(self.payload().encode(&mut encoder)))
     }
 
     fn payload(&self) -> (u8, u8, &str, bool) {
@@ -100,28 +84,20 @@ impl JoinResponse {
 
 impl Notification {
     pub fn receive(stream: &TcpStream) -> Result<Notification, Error> {
-        let mut decoder = Decoder::new(stream);
+        let (_, topic, data): (u8, String, String) = try!(Decodable::decode(&mut Decoder::new(stream)));
 
-        match Decodable::decode(&mut decoder) {
-            Ok(message) => {
-                let (_, topic, data): (u8, String, String) = message;
-
-                match topic.as_ref() {
-                    "out"            => Ok(Notification::Output(data)),
-                    "closed"         => Ok(Notification::Closed(data)),
-                    "watcher_joined" => Ok(Notification::WatcherJoined(data)),
-                    _                => Err(Error::UnknownMessage)
-                }
-
-            },
-            Err(e) => Err(Error::from(e))
+        match topic.as_ref() {
+            "out"            => Ok(Notification::Output(data)),
+            "closed"         => Ok(Notification::Closed(data)),
+            "watcher_joined" => Ok(Notification::WatcherJoined(data)),
+            _                => Err(Error::UnknownMessage)
         }
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
         let mut encoder = Encoder::new(&mut *stream);
 
-        self.payload().encode(&mut encoder).or_else(|e| Err(Error::from(e)))
+        Ok(try!(self.payload().encode(&mut encoder)))
     }
 
     fn payload(&self) -> (u8, &str, &String) {
