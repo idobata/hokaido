@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::{io, thread};
-use std::os::unix::io::{AsRawFd};
+use std::os::unix::io::AsRawFd;
 use std::sync::mpsc::{channel, Sender};
 
 use pty;
@@ -15,8 +15,8 @@ use winsize;
 use message;
 
 pub fn execute(host: String, port: i32, channel_name: String) {
-    let mut stream         = TcpStream::connect(&format!("{}:{}", host, port)[..]).unwrap();
-    let (child, termios)   = pty_spawn::pty_spawn();
+    let mut stream = TcpStream::connect(&format!("{}:{}", host, port)[..]).unwrap();
+    let (child, termios) = pty_spawn::pty_spawn();
     let (sender, receiver) = channel();
 
     let request = message::JoinRequest::Broadcast(channel_name.clone());
@@ -33,8 +33,8 @@ pub fn execute(host: String, port: i32, channel_name: String) {
     for message in receiver {
         match message {
             Some(notification) => notification.send(&mut stream).unwrap(),
-            None => break
-        };
+            None => break,
+        }
     }
 
     child.wait().unwrap();
@@ -42,15 +42,19 @@ pub fn execute(host: String, port: i32, channel_name: String) {
 }
 
 fn build_winsize_notification() -> Option<message::Notification> {
-    let winsize      = winsize::from_fd(libc::STDIN_FILENO).unwrap();
-    let notification = message::Notification::Output(format!("\x1b[8;{};{}t", winsize.ws_row, winsize.ws_col));
+    let winsize = winsize::from_fd(libc::STDIN_FILENO).unwrap();
+    let notification = message::Notification::Output(format!("\x1b[8;{};{}t",
+                                                             winsize.ws_row,
+                                                             winsize.ws_col));
 
     Some(notification)
 }
 
 static mut sigwinch_count: i32 = 0;
-extern fn handle_sigwinch(_: i32) {
-    unsafe { sigwinch_count += 1; };
+extern "C" fn handle_sigwinch(_: i32) {
+    unsafe {
+        sigwinch_count += 1;
+    }
 }
 
 struct InputHandler {
@@ -60,12 +64,12 @@ struct InputHandler {
 
 struct OutputHandler {
     output: io::Stdout,
-    child:  pty::Child,
+    child: pty::Child,
     sender: Sender<Option<message::Notification>>,
 }
 
 struct ResizeHandler {
-    child:  pty::Child,
+    child: pty::Child,
     sender: Sender<Option<message::Notification>>,
 }
 
@@ -76,7 +80,10 @@ struct NotificationHandler {
 
 impl InputHandler {
     fn spawn(input: io::Stdin, child: &pty::Child) {
-        let mut handler = InputHandler { input: input, child: child.clone() };
+        let mut handler = InputHandler {
+            input: input,
+            child: child.clone(),
+        };
 
         thread::spawn(move || {
             handler.process();
@@ -96,8 +103,14 @@ impl InputHandler {
 }
 
 impl OutputHandler {
-    fn spawn(output: io::Stdout, child: &pty::Child, sender: &Sender<Option<message::Notification>>) {
-        let mut handler = OutputHandler { output: output, child: child.clone(), sender: sender.clone() };
+    fn spawn(output: io::Stdout,
+             child: &pty::Child,
+             sender: &Sender<Option<message::Notification>>) {
+        let mut handler = OutputHandler {
+            output: output,
+            child: child.clone(),
+            sender: sender.clone(),
+        };
 
         thread::spawn(move || {
             handler.process();
@@ -137,7 +150,10 @@ impl OutputHandler {
 
 impl ResizeHandler {
     fn spawn(child: &pty::Child, sender: &Sender<Option<message::Notification>>) {
-        let handler = ResizeHandler { child: child.clone(), sender: sender.clone() };
+        let handler = ResizeHandler {
+            child: child.clone(),
+            sender: sender.clone(),
+        };
 
         Self::register_sigwinch_handler();
 
@@ -147,13 +163,13 @@ impl ResizeHandler {
     }
 
     fn register_sigwinch_handler() {
-        let sig_action = signal::SigAction::new(
-            handle_sigwinch,
-            signal::signal::SA_RESTART,
-            signal::SigSet::empty()
-        );
+        let sig_action = signal::SigAction::new(handle_sigwinch,
+                                                signal::signal::SA_RESTART,
+                                                signal::SigSet::empty());
 
-        unsafe { signal::sigaction(signal::SIGWINCH, &sig_action).unwrap(); };
+        unsafe {
+            signal::sigaction(signal::SIGWINCH, &sig_action).unwrap();
+        }
     }
 
     fn process(&self) {
@@ -184,7 +200,10 @@ impl ResizeHandler {
 
 impl NotificationHandler {
     fn spawn(stream: &TcpStream, sender: &Sender<Option<message::Notification>>) {
-        let mut handler = NotificationHandler { stream: stream.try_clone().unwrap(), sender: sender.clone() };
+        let mut handler = NotificationHandler {
+            stream: stream.try_clone().unwrap(),
+            sender: sender.clone(),
+        };
 
         thread::spawn(move || {
             handler.process();
@@ -200,11 +219,11 @@ impl NotificationHandler {
                     self.handle_closed(&reason);
 
                     break;
-                },
+                }
                 message::Notification::WatcherJoined(_) => {
                     self.sender.send(build_winsize_notification()).unwrap();
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
     }

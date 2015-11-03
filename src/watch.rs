@@ -29,10 +29,10 @@ impl NotificationHandler {
             let notification = message::Notification::receive(&self.stream).unwrap();
 
             match notification {
-                message::Notification::Output(data)   => self.handle_output(&data),
+                message::Notification::Output(data) => self.handle_output(&data),
                 message::Notification::Closed(reason) => self.handle_closed(&reason),
                 _ => (),
-            };
+            }
         }
     }
 

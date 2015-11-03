@@ -16,41 +16,48 @@ mod watch;
 
 use docopt::Docopt;
 
-static USAGE: &'static str ="
+static USAGE: &'static str = "
 Usage:
-  hokaido <command> [--host=<host>] [--port=<port>] [--channel=<channel>]
+  hokaido <command> [--host=<host>] [--port=<port>] \
+                              [--channel=<channel>]
   hokaido (-h | --help)
-  hokaido (-v | --version)
+  hokaido (-v | \
+                              --version)
 
 Options:
   -h --help            Show this screen.
-  -v --version         Show the version of hokaido.
-  --host=<host>        Server name  [default: 0.0.0.0].
-  --port=<port>        Server port  [default: 4423].
-  --channel=<channel>  Channel Name [default: default].
+  -v \
+                              --version         Show the version of hokaido.
+  --host=<host>        \
+                              Server name  [default: 0.0.0.0].
+  --port=<port>        Server port  \
+                              [default: 4423].
+  --channel=<channel>  Channel Name [default: \
+                              default].
 ";
 
 #[derive(RustcDecodable, Debug)]
 struct Args {
-    arg_command:  Option<String>,
-    flag_host:    String,
-    flag_port:    i32,
+    arg_command: Option<String>,
+    flag_host: String,
+    flag_port: i32,
     flag_channel: String,
-    flag_version: bool
+    flag_version: bool,
 }
 
 fn main() {
-    let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit() );
+    let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 
     match args.arg_command {
         Some(command_name) => {
             match command_name.as_ref() {
-                "broadcast" => broadcast::execute(args.flag_host, args.flag_port, args.flag_channel),
-                "server"    => server::execute(args.flag_host, args.flag_port),
-                "watch"     => watch::execute(args.flag_host, args.flag_port, args.flag_channel),
-                _           => unreachable!()
+                "broadcast" =>
+                    broadcast::execute(args.flag_host, args.flag_port, args.flag_channel),
+                "server" => server::execute(args.flag_host, args.flag_port),
+                "watch" => watch::execute(args.flag_host, args.flag_port, args.flag_channel),
+                _ => unreachable!(),
             }
-        },
+        }
         _ => {
             if args.flag_version {
                 println!("{}", env!("CARGO_PKG_VERSION"));

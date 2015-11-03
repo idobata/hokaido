@@ -7,21 +7,23 @@ use std::thread;
 use message;
 
 pub fn execute(host: String, port: i32) {
-    let listener     = TcpListener::bind(&format!("{}:{}", host, port)[..]).unwrap();
+    let listener = TcpListener::bind(&format!("{}:{}", host, port)[..]).unwrap();
     let mut channels = Channels { channels: HashMap::new() };
 
     for stream in listener.incoming() {
-        let stream  = stream.unwrap();
+        let stream = stream.unwrap();
         let request = message::JoinRequest::receive(&stream);
 
         match request {
             Ok(request) => {
                 match request {
-                    message::JoinRequest::Broadcast(ch) => BroadcastHandler::spawn(&stream, channels.fetch(&ch)),
-                    message::JoinRequest::Watch(ch)     => WatchHandler::spawn(&stream, channels.fetch(&ch)),
+                    message::JoinRequest::Broadcast(ch) =>
+                        BroadcastHandler::spawn(&stream, channels.fetch(&ch)),
+                    message::JoinRequest::Watch(ch) =>
+                        WatchHandler::spawn(&stream, channels.fetch(&ch)),
                 }
-            },
-            Err(e) => println!("{}", e)
+            }
+            Err(e) => println!("{}", e),
         }
     }
 }
@@ -31,11 +33,11 @@ struct Channels {
 
 struct Channel {
     broadcaster: Option<TcpStream>,
-    watchers:    Vec<TcpStream>,
+    watchers: Vec<TcpStream>,
 }
 
 struct BroadcastHandler {
-    stream:  TcpStream,
+    stream: TcpStream,
     channel: Arc<Mutex<Channel>>,
 }
 
@@ -49,7 +51,10 @@ impl Channels {
         if self.channels.contains_key(&ch[..]) {
             self.channels.get(&ch[..]).unwrap()
         } else {
-            let channel = Channel { broadcaster: None, watchers: Vec::new() };
+            let channel = Channel {
+                broadcaster: None,
+                watchers: Vec::new(),
+            };
 
             self.channels.insert(ch.clone(), Arc::new(Mutex::new(channel)));
 
@@ -62,10 +67,11 @@ impl Channel {
     fn takeover(&mut self, stream: TcpStream) {
         match self.broadcaster.as_mut() {
             Some(mut current) => {
-                let _ = message::Notification::Closed("Broadcaster has changed".to_string()).send(&mut current);
+                let _ = message::Notification::Closed("Broadcaster has changed".to_string())
+                            .send(&mut current);
                 let _ = current.shutdown(Shutdown::Both);
-            },
-            None => ()
+            }
+            None => (),
         }
 
         self.broadcaster = Some(stream);
@@ -74,7 +80,10 @@ impl Channel {
 
 impl BroadcastHandler {
     fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
-        let mut handler = BroadcastHandler { stream: stream.try_clone().unwrap(), channel: channel.clone() };
+        let mut handler = BroadcastHandler {
+            stream: stream.try_clone().unwrap(),
+            channel: channel.clone(),
+        };
 
         let _ = channel.lock().and_then(|mut ch| {
             ch.takeover(stream.try_clone().unwrap());
@@ -91,16 +100,18 @@ impl BroadcastHandler {
 
         loop {
             let mut buf = vec![0; 128];
-            let nread   = self.stream.read(&mut buf).unwrap();
+            let nread = self.stream.read(&mut buf).unwrap();
 
-            if nread == 0 { break; }
+            if nread == 0 {
+                break;
+            }
 
             buf.truncate(nread as usize);
 
             for mut watcher in self.channel.lock().unwrap().watchers.iter() {
                 let _ = watcher.write(&buf);
             }
-        };
+        }
 
         self.stream.shutdown(Shutdown::Both).unwrap();
     }
@@ -108,7 +119,10 @@ impl BroadcastHandler {
 
 impl WatchHandler {
     fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
-        let mut handler = WatchHandler { stream: stream.try_clone().unwrap(), channel: channel.clone() };
+        let mut handler = WatchHandler {
+            stream: stream.try_clone().unwrap(),
+            channel: channel.clone(),
+        };
 
         thread::spawn(move || {
             handler.process();
@@ -123,11 +137,13 @@ impl WatchHandler {
                 channel.watchers.push(self.stream.try_clone().unwrap());
 
                 match channel.broadcaster.as_mut() {
-                    Some(mut broadcaster) => message::Notification::WatcherJoined("".to_string()).send(&mut broadcaster).unwrap(),
-                    None                  => ()
+                    Some(mut broadcaster) => message::Notification::WatcherJoined("".to_string())
+                                                 .send(&mut broadcaster)
+                                                 .unwrap(),
+                    None => (),
                 }
-            },
-            Err(e) => panic!("{}", e)
+            }
+            Err(e) => panic!("{}", e),
         }
     }
 }

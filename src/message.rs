@@ -29,12 +29,13 @@ pub enum Error {
 
 impl JoinRequest {
     pub fn receive(stream: &TcpStream) -> Result<JoinRequest, Error> {
-        let (_, _, role, channel_name): (u8, u8, String, String) = try!(Decodable::decode(&mut Decoder::new(stream)));
+        let (_, _, role, channel_name): (u8, u8, String, String) =
+            try!(Decodable::decode(&mut Decoder::new(stream)));
 
         match role.as_ref() {
             "broadcast" => Ok(JoinRequest::Broadcast(channel_name)),
-            "watch"     => Ok(JoinRequest::Watch(channel_name)),
-            _           => Err(Error::UnknownMessage)
+            "watch" => Ok(JoinRequest::Watch(channel_name)),
+            _ => Err(Error::UnknownMessage),
         }
     }
 
@@ -46,21 +47,22 @@ impl JoinRequest {
 
     fn payload(&self) -> (u8, u8, &str, &String) {
         let header = 0u8;
-        let id     = 0u8;
+        let id = 0u8;
 
         match *self {
             JoinRequest::Broadcast(ref string) => (header, id, "broadcast", string),
-            JoinRequest::Watch(ref string)     => (header, id, "watch",     string),
+            JoinRequest::Watch(ref string) => (header, id, "watch", string),
         }
     }
 }
 
 impl JoinResponse {
     pub fn receive(stream: &TcpStream) -> Result<JoinResponse, Error> {
-        let (_, _, _, result): (u8, u8, String, bool) = try!(Decodable::decode(&mut Decoder::new(stream)));
+        let (_, _, _, result): (u8, u8, String, bool) =
+            try!(Decodable::decode(&mut Decoder::new(stream)));
 
         match result {
-            true  => Ok(JoinResponse::Success),
+            true => Ok(JoinResponse::Success),
             false => Ok(JoinResponse::Failure),
         }
     }
@@ -73,7 +75,7 @@ impl JoinResponse {
 
     fn payload(&self) -> (u8, u8, &str, bool) {
         let header = 0u8;
-        let id     = 0u8;
+        let id = 0u8;
 
         match *self {
             JoinResponse::Success => (header, id, "", true),
@@ -84,13 +86,14 @@ impl JoinResponse {
 
 impl Notification {
     pub fn receive(stream: &TcpStream) -> Result<Notification, Error> {
-        let (_, topic, data): (u8, String, String) = try!(Decodable::decode(&mut Decoder::new(stream)));
+        let (_, topic, data): (u8, String, String) =
+            try!(Decodable::decode(&mut Decoder::new(stream)));
 
         match topic.as_ref() {
-            "out"            => Ok(Notification::Output(data)),
-            "closed"         => Ok(Notification::Closed(data)),
+            "out" => Ok(Notification::Output(data)),
+            "closed" => Ok(Notification::Closed(data)),
             "watcher_joined" => Ok(Notification::WatcherJoined(data)),
-            _                => Err(Error::UnknownMessage)
+            _ => Err(Error::UnknownMessage),
         }
     }
 
@@ -104,8 +107,8 @@ impl Notification {
         let header = 2u8;
 
         match *self {
-            Notification::Output(ref string)        => (header, "out",            string),
-            Notification::Closed(ref string)        => (header, "closed",         string),
+            Notification::Output(ref string) => (header, "out", string),
+            Notification::Closed(ref string) => (header, "closed", string),
             Notification::WatcherJoined(ref string) => (header, "watcher_joined", string),
         }
     }
@@ -120,7 +123,7 @@ impl std::error::Error for Error {
         match *self {
             Error::EncodeError(ref err) => Some(err),
             Error::DecodeError(ref err) => Some(err),
-            _ => None
+            _ => None,
         }
     }
 }

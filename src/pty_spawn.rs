@@ -7,7 +7,7 @@ use winsize;
 pub fn pty_spawn() -> (pty::Child, Termios) {
     let termios = Termios::from_fd(libc::STDIN_FILENO).unwrap();
     let winsize = winsize::from_fd(libc::STDIN_FILENO).unwrap();
-    let child   = pty::fork().unwrap();
+    let child = pty::fork().unwrap();
 
     if child.pid() == 0 {
         tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios).unwrap();
@@ -30,7 +30,9 @@ fn exec_shell(shell: String) {
     args.push(cmd.as_ptr());
     args.push(std::ptr::null());
 
-    unsafe { libc::execvp(cmd.as_ptr(), args.as_mut_ptr()) };
+    unsafe {
+        libc::execvp(cmd.as_ptr(), args.as_mut_ptr());
+    }
 }
 
 fn enter_raw_mode(fd: libc::c_int) {
@@ -41,7 +43,7 @@ fn enter_raw_mode(fd: libc::c_int) {
     new_termios.c_cflag &= !(CSIZE | PARENB);
     new_termios.c_cflag |= CS8;
     new_termios.c_oflag &= !(OPOST);
-    new_termios.c_cc[VMIN]  = 1;
+    new_termios.c_cc[VMIN] = 1;
     new_termios.c_cc[VTIME] = 0;
 
     tcsetattr(libc::STDIN_FILENO, TCSANOW, &new_termios).unwrap();
