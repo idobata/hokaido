@@ -1,3 +1,8 @@
+#![deny(missing_debug_implementations, missing_copy_implementations,
+        trivial_casts, trivial_numeric_casts,
+        unstable_features,
+        unused_import_braces, unused_qualifications)]
+
 extern crate docopt;
 extern crate libc;
 extern crate nix;
@@ -51,8 +56,7 @@ fn main() {
     match args.arg_command {
         Some(command_name) => {
             match command_name.as_ref() {
-                "broadcast" =>
-                    broadcast::execute(args.flag_host, args.flag_port, args.flag_channel),
+                "broadcast" => broadcast::execute(args.flag_host, args.flag_port, args.flag_channel),
                 "server" => server::execute(args.flag_host, args.flag_port),
                 "watch" => watch::execute(args.flag_host, args.flag_port, args.flag_channel),
                 _ => unreachable!(),

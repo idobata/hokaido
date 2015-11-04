@@ -106,7 +106,7 @@ impl BroadcastHandler {
                 break;
             }
 
-            buf.truncate(nread as usize);
+            buf.truncate(nread);
 
             for mut watcher in self.channel.lock().unwrap().watchers.iter() {
                 let _ = watcher.write(&buf);
