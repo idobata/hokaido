@@ -47,7 +47,9 @@ struct WatchHandler {
 }
 
 impl Channels {
-    fn fetch(&mut self, ch: &String) -> &Arc<Mutex<Channel>> {
+    fn fetch<K: AsRef<str>>(&mut self, key: &K) -> &Arc<Mutex<Channel>> {
+        let ch = key.as_ref();
+
         if self.channels.contains_key(&ch[..]) {
             self.channels.get(&ch[..]).unwrap()
         } else {
@@ -56,7 +58,7 @@ impl Channels {
                 watchers: Vec::new(),
             };
 
-            self.channels.insert(ch.clone(), Arc::new(Mutex::new(channel)));
+            self.channels.insert(ch.to_owned(), Arc::new(Mutex::new(channel)));
 
             self.fetch(&ch)
         }
@@ -67,7 +69,7 @@ impl Channel {
     fn takeover(&mut self, stream: TcpStream) {
         match self.broadcaster.as_mut() {
             Some(mut current) => {
-                let _ = message::Notification::Closed("Broadcaster has changed".to_string())
+                let _ = message::Notification::Closed("Broadcaster has changed".to_owned())
                             .send(&mut current);
                 let _ = current.shutdown(Shutdown::Both);
             }
@@ -108,7 +110,7 @@ impl BroadcastHandler {
 
             buf.truncate(nread);
 
-            for mut watcher in self.channel.lock().unwrap().watchers.iter() {
+            for mut watcher in &self.channel.lock().unwrap().watchers {
                 let _ = watcher.write(&buf);
             }
         }
@@ -137,7 +139,7 @@ impl WatchHandler {
                 channel.watchers.push(self.stream.try_clone().unwrap());
 
                 match channel.broadcaster.as_mut() {
-                    Some(mut broadcaster) => message::Notification::WatcherJoined("".to_string())
+                    Some(mut broadcaster) => message::Notification::WatcherJoined("".to_owned())
                                                  .send(&mut broadcaster)
                                                  .unwrap(),
                     None => (),

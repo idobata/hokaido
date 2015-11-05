@@ -29,19 +29,19 @@ impl NotificationHandler {
             let notification = message::Notification::receive(&self.stream).unwrap();
 
             match notification {
-                message::Notification::Output(data) => self.handle_output(&data),
-                message::Notification::Closed(reason) => self.handle_closed(&reason),
+                message::Notification::Output(data) => self.handle_output(data),
+                message::Notification::Closed(reason) => self.handle_closed(reason),
                 _ => (),
             }
         }
     }
 
-    fn handle_output(&self, data: &String) {
+    fn handle_output(&self, data: String) {
         print!("{}", data);
         io::stdout().flush().unwrap();
     }
 
-    fn handle_closed(&self, reason: &String) {
+    fn handle_closed(&self, reason: String) {
         println!("Connection closed: {}", reason);
 
         ::std::process::exit(0);

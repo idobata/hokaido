@@ -13,7 +13,7 @@ pub fn pty_spawn() -> (pty::Child, Termios) {
         tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios).unwrap();
         winsize::set(libc::STDIN_FILENO, &winsize);
 
-        exec_shell(std::env::var("SHELL").unwrap_or("bash".to_string()));
+        exec_shell(std::env::var("SHELL").unwrap_or("bash".to_owned()));
 
         panic!("Can't invoke new shell");
     } else {

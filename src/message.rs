@@ -61,10 +61,7 @@ impl JoinResponse {
         let (_, _, _, result): (u8, u8, String, bool) =
             try!(Decodable::decode(&mut Decoder::new(stream)));
 
-        match result {
-            true => Ok(JoinResponse::Success),
-            false => Ok(JoinResponse::Failure),
-        }
+        if result { Ok(JoinResponse::Success) } else { Ok(JoinResponse::Failure) }
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {

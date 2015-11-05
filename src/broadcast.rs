@@ -216,7 +216,7 @@ impl NotificationHandler {
 
             match notification {
                 message::Notification::Closed(reason) => {
-                    self.handle_closed(&reason);
+                    self.handle_closed(reason);
 
                     break;
                 }
@@ -228,7 +228,7 @@ impl NotificationHandler {
         }
     }
 
-    fn handle_closed(&self, reason: &String) {
+    fn handle_closed(&self, reason: String) {
         self.sender.send(None).unwrap();
 
         println!("Broadcast has stopped: {}", reason);
