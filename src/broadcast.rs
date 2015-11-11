@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::{io, thread};
+use std::{io, thread, time};
 use std::os::unix::io::AsRawFd;
 use std::sync::mpsc::{channel, Sender};
 
@@ -186,7 +186,7 @@ impl ResizeHandler {
                 count = last_count;
             }
 
-            thread::sleep_ms(1000);
+            thread::sleep(time::Duration::new(1, 0));
         }
     }
 
