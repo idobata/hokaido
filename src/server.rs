@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 use message;
 
@@ -100,22 +100,51 @@ impl BroadcastHandler {
     fn process(&mut self) {
         message::JoinResponse::Success.send(&mut self.stream).unwrap();
 
-        loop {
-            let mut buf = vec![0; 128];
-            let nread = self.stream.read(&mut buf).unwrap();
+        let (sender, receiver) = channel();
 
-            if nread == 0 {
-                break;
-            }
-
-            buf.truncate(nread);
-
-            for mut watcher in &self.channel.lock().unwrap().watchers {
-                let _ = watcher.write(&buf);
-            }
-        }
+        self.spawn_relay(sender.clone());
+        self.broadcast(receiver);
 
         self.stream.shutdown(Shutdown::Both).unwrap();
+    }
+
+    fn spawn_relay(&self, sender: Sender<Option<message::Notification>>) {
+        let stream = self.stream.try_clone().unwrap();
+
+        thread::spawn(move || {
+            loop {
+                match message::Notification::receive(&stream) {
+                    Ok(notification) => {
+                        match notification {
+                            message::Notification::Output(data)   => {
+                                let _ = sender.send(Some(message::Notification::Output(data)));
+                            },
+                            message::Notification::Closed(reason) => {
+                                let _ = sender.send(Some(message::Notification::Closed(reason)));
+                            },
+                            _ => break,
+                        };
+                    },
+                    Err(_) => {
+                        sender.send(None).unwrap();
+                        break;
+                    }
+                }
+            };
+        });
+    }
+
+    fn broadcast(&self, receiver: Receiver<Option<message::Notification>>) {
+        for message in receiver {
+            match message {
+                Some(notification) => {
+                    for mut watcher in self.channel.lock().unwrap().watchers.iter_mut() {
+                        let _ = notification.send(watcher);
+                    }
+                },
+                None => break
+            };
+        }
     }
 }
 
