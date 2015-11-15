@@ -1,6 +1,7 @@
-use std::io::{Read, Write};
+use std;
+use std::io::{self, Read, Write};
 use std::net::TcpStream;
-use std::{io, thread, time};
+use std::{fmt, process, result, thread, time};
 use std::os::unix::io::AsRawFd;
 use std::sync::mpsc::{channel, Sender};
 
@@ -14,40 +15,90 @@ use pty_spawn;
 use winsize;
 use message;
 
-pub fn execute(host: String, port: i32, channel_name: String) {
-    let mut stream = TcpStream::connect(&format!("{}:{}", host, port)[..]).unwrap();
+#[derive(Debug)]
+pub enum Error {
+    Message(message::Error),
+    Pty(pty::Error),
+    Io(io::Error),
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        "Broadcast error"
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            Error::Message(ref err) => Some(err),
+            Error::Pty(ref err) => Some(err),
+            Error::Io(ref err) => Some(err),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        std::error::Error::description(self).fmt(f)
+    }
+}
+
+impl From<message::Error> for Error {
+    fn from(err: message::Error) -> Error {
+        Error::Message(err)
+    }
+}
+
+impl From<pty::Error> for Error {
+    fn from(err: pty::Error) -> Error {
+        Error::Pty(err)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+pub type Result<T> = result::Result<T, Error>;
+
+pub fn execute(host: String, port: i32, channel_name: String) -> Result<()> {
+    let mut stream = try!(TcpStream::connect(&format!("{}:{}", host, port)[..]));
     let (child, termios) = pty_spawn::pty_spawn();
     let (sender, receiver) = channel();
 
     let request = message::JoinRequest::Broadcast(channel_name.clone());
-    request.send(&mut stream).unwrap();
-    message::JoinResponse::receive(&stream).unwrap();
+
+    try!(request.send(&mut stream));
+    try!(message::JoinResponse::receive(&stream));
 
     InputHandler::spawn(io::stdin(), &child);
     OutputHandler::spawn(io::stdout(), &child, &sender);
     ResizeHandler::spawn(&child, &sender);
     NotificationHandler::spawn(&stream, &sender);
 
-    sender.send(build_winsize_notification()).unwrap();
+    let _ = sender.send(build_winsize_notification().ok());
 
     for message in receiver {
         match message {
-            Some(notification) => notification.send(&mut stream).unwrap(),
+            Some(notification) => try!(notification.send(&mut stream)),
             None => break,
         }
     }
 
-    child.wait().unwrap();
-    tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios).unwrap();
+    try!(child.wait());
+    try!(tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios));
+
+    Ok(())
 }
 
-fn build_winsize_notification() -> Option<message::Notification> {
-    let winsize = winsize::from_fd(libc::STDIN_FILENO).unwrap();
+fn build_winsize_notification() -> Result<message::Notification> {
+    let winsize = try!(winsize::from_fd(libc::STDIN_FILENO));
     let notification = message::Notification::Output(format!("\x1b[8;{};{}t",
                                                              winsize.ws_row,
                                                              winsize.ws_col));
 
-    Some(notification)
+    Ok(notification)
 }
 
 static mut sigwinch_count: i32 = 0;
@@ -86,18 +137,21 @@ impl InputHandler {
         };
 
         thread::spawn(move || {
-            handler.process();
+            handler.process().unwrap_or_else(|e| {
+                println!("{:?}", e);
+                process::exit(1);
+            });
         });
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<()> {
         let mut pty = self.child.pty().unwrap();
         let mut buf = [0; 128];
 
         loop {
-            let nread = self.input.read(&mut buf).unwrap();
+            let nread = try!(self.input.read(&mut buf));
 
-            pty.write(&buf[..nread]).unwrap();
+            try!(pty.write(&buf[..nread]));
         }
     }
 }
@@ -113,11 +167,14 @@ impl OutputHandler {
         };
 
         thread::spawn(move || {
-            handler.process();
+            handler.process().unwrap_or_else(|e| {
+                println!("{:?}", e);
+                process::exit(1);
+            });
         });
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<()> {
         let mut pty = self.child.pty().unwrap();
         let mut buf = [0; 128];
 
@@ -134,12 +191,13 @@ impl OutputHandler {
         }
 
         self.handle_terminate();
+
+        Ok(())
     }
 
     fn handle_output(&mut self, string: String) {
         print!("{}", string);
-        self.output.flush().unwrap();
-
+        let _ = self.output.flush();
         let _ = self.sender.send(Some(message::Notification::Output(string)));
     }
 
@@ -158,7 +216,10 @@ impl ResizeHandler {
         Self::register_sigwinch_handler();
 
         thread::spawn(move || {
-            handler.process();
+            handler.process().unwrap_or_else(|e| {
+                println!("{:?}", e);
+                process::exit(1);
+            });
         });
     }
 
@@ -172,14 +233,14 @@ impl ResizeHandler {
         }
     }
 
-    fn process(&self) {
+    fn process(&self) -> Result<()> {
         let mut count = unsafe { sigwinch_count };
 
         loop {
             let last_count = unsafe { sigwinch_count };
 
             if last_count > count {
-                let winsize = winsize::from_fd(libc::STDIN_FILENO).unwrap();
+                let winsize = try!(winsize::from_fd(libc::STDIN_FILENO));
 
                 self.handle_resize(&winsize);
 
@@ -193,7 +254,7 @@ impl ResizeHandler {
     fn handle_resize(&self, winsize: &libc_ext::Winsize) {
         let pty = self.child.pty().unwrap();
 
-        self.sender.send(build_winsize_notification()).unwrap();
+        let _ = self.sender.send(build_winsize_notification().ok());
         winsize::set(pty.as_raw_fd(), winsize);
     }
 }
@@ -206,13 +267,16 @@ impl NotificationHandler {
         };
 
         thread::spawn(move || {
-            handler.process();
+            handler.process().unwrap_or_else(|e| {
+                println!("{:?}", e);
+                process::exit(1);
+            });
         });
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<()> {
         loop {
-            let notification = message::Notification::receive(&self.stream).unwrap();
+            let notification = try!(message::Notification::receive(&self.stream));
 
             match notification {
                 message::Notification::Closed(reason) => {
@@ -221,15 +285,17 @@ impl NotificationHandler {
                     break;
                 }
                 message::Notification::WatcherJoined(_) => {
-                    self.sender.send(build_winsize_notification()).unwrap();
+                    let _ = self.sender.send(build_winsize_notification().ok());
                 }
                 _ => (),
             }
         }
+
+        Ok(())
     }
 
     fn handle_closed(&self, reason: String) {
-        self.sender.send(None).unwrap();
+        let _ = self.sender.send(None);
 
         println!("Broadcast has stopped: {}", reason);
     }

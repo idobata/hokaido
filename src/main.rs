@@ -26,22 +26,16 @@ use docopt::Docopt;
 
 static USAGE: &'static str = "
 Usage:
-  hokaido <command> [--host=<host>] [--port=<port>] \
-                              [--channel=<channel>]
+  hokaido <command> [--host=<host>] [--port=<port>] [--channel=<channel>]
   hokaido (-h | --help)
-  hokaido (-v | \
-                              --version)
+  hokaido (-v | --version)
 
 Options:
   -h --help            Show this screen.
-  -v \
-                              --version         Show the version of hokaido.
-  --host=<host>        \
-                              Server name  [default: 0.0.0.0].
-  --port=<port>        Server port  \
-                              [default: 4423].
-  --channel=<channel>  Channel Name [default: \
-                              default].
+  -v --version         Show the version of hokaido.
+  --host=<host>        Server name  [default: 0.0.0.0].
+  --port=<port>        Server port  [default: 4423].
+  --channel=<channel>  Channel Name [default: default].
 ";
 
 #[derive(RustcDecodable, Debug)]
@@ -59,9 +53,9 @@ fn main() {
     match args.arg_command {
         Some(command_name) => {
             match command_name.as_ref() {
-                "broadcast" => broadcast::execute(args.flag_host, args.flag_port, args.flag_channel),
-                "server" => server::execute(args.flag_host, args.flag_port),
-                "watch" => watch::execute(args.flag_host, args.flag_port, args.flag_channel),
+                "broadcast" => broadcast::execute(args.flag_host, args.flag_port, args.flag_channel).unwrap_or_else(|e| panic!(e)),
+                "server" => server::execute(args.flag_host, args.flag_port).unwrap_or_else(|e| panic!(e)),
+                "watch" => watch::execute(args.flag_host, args.flag_port, args.flag_channel).unwrap_or_else(|e| panic!(e)),
                 _ => unreachable!(),
             }
         }

@@ -1,5 +1,5 @@
 use std;
-use std::fmt;
+use std::{fmt, result};
 use std::net::TcpStream;
 use rustc_serialize::{Encodable, Decodable};
 use msgpack::{self, Encoder, Decoder};
@@ -22,13 +22,47 @@ pub enum Notification {
 
 #[derive(Debug)]
 pub enum Error {
-    EncodeError(msgpack::encode::Error),
-    DecodeError(msgpack::decode::Error),
+    Encode(msgpack::encode::Error),
+    Decode(msgpack::decode::Error),
     UnknownMessage,
 }
 
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        "Processing message failed"
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            Error::Encode(ref err) => Some(err),
+            Error::Decode(ref err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        std::error::Error::description(self).fmt(f)
+    }
+}
+
+impl From<msgpack::encode::Error> for Error {
+    fn from(err: msgpack::encode::Error) -> Error {
+        Error::Encode(err)
+    }
+}
+
+impl From<msgpack::decode::Error> for Error {
+    fn from(err: msgpack::decode::Error) -> Error {
+        Error::Decode(err)
+    }
+}
+
+pub type Result<T> = result::Result<T, Error>;
+
 impl JoinRequest {
-    pub fn receive(stream: &TcpStream) -> Result<JoinRequest, Error> {
+    pub fn receive(stream: &TcpStream) -> Result<JoinRequest> {
         let (_, _, role, channel_name): (u8, u8, String, String) =
             try!(Decodable::decode(&mut Decoder::new(stream)));
 
@@ -39,7 +73,7 @@ impl JoinRequest {
         }
     }
 
-    pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
+    pub fn send(&self, stream: &mut TcpStream) -> Result<()> {
         let mut encoder = Encoder::new(&mut *stream);
 
         Ok(try!(self.payload().encode(&mut encoder)))
@@ -57,14 +91,14 @@ impl JoinRequest {
 }
 
 impl JoinResponse {
-    pub fn receive(stream: &TcpStream) -> Result<JoinResponse, Error> {
+    pub fn receive(stream: &TcpStream) -> Result<JoinResponse> {
         let (_, _, _, result): (u8, u8, String, bool) =
             try!(Decodable::decode(&mut Decoder::new(stream)));
 
         if result { Ok(JoinResponse::Success) } else { Ok(JoinResponse::Failure) }
     }
 
-    pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
+    pub fn send(&self, stream: &mut TcpStream) -> Result<()> {
         let mut encoder = Encoder::new(&mut *stream);
 
         Ok(try!(self.payload().encode(&mut encoder)))
@@ -82,7 +116,7 @@ impl JoinResponse {
 }
 
 impl Notification {
-    pub fn receive(stream: &TcpStream) -> Result<Notification, Error> {
+    pub fn receive(stream: &TcpStream) -> Result<Notification> {
         let (_, topic, data): (u8, String, String) =
             try!(Decodable::decode(&mut Decoder::new(stream)));
 
@@ -94,7 +128,7 @@ impl Notification {
         }
     }
 
-    pub fn send(&self, stream: &mut TcpStream) -> Result<(), Error> {
+    pub fn send(&self, stream: &mut TcpStream) -> Result<()> {
         let mut encoder = Encoder::new(&mut *stream);
 
         Ok(try!(self.payload().encode(&mut encoder)))
@@ -108,37 +142,5 @@ impl Notification {
             Notification::Closed(ref string) => (header, "closed", string),
             Notification::WatcherJoined(ref string) => (header, "watcher_joined", string),
         }
-    }
-}
-
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        "Processing message failed"
-    }
-
-    fn cause(&self) -> Option<&::std::error::Error> {
-        match *self {
-            Error::EncodeError(ref err) => Some(err),
-            Error::DecodeError(ref err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        std::error::Error::description(self).fmt(f)
-    }
-}
-
-impl From<msgpack::encode::Error> for Error {
-    fn from(err: msgpack::encode::Error) -> Error {
-        Error::EncodeError(err)
-    }
-}
-
-impl From<msgpack::decode::Error> for Error {
-    fn from(err: msgpack::decode::Error) -> Error {
-        Error::DecodeError(err)
     }
 }
