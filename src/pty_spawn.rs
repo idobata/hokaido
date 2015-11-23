@@ -4,7 +4,9 @@ use std;
 use termios::*;
 use winsize;
 
-pub fn pty_spawn() -> (pty::Child, Termios) {
+static mut termios_to_restore: Option<Termios> = None;
+
+pub fn pty_spawn() -> pty::Child {
     let termios = Termios::from_fd(libc::STDIN_FILENO).unwrap();
     let winsize = winsize::from_fd(libc::STDIN_FILENO).unwrap();
     let child = pty::fork().unwrap();
@@ -17,10 +19,15 @@ pub fn pty_spawn() -> (pty::Child, Termios) {
 
         panic!("Can't invoke new shell");
     } else {
+        unsafe {
+            termios_to_restore = Some(termios);
+            libc::atexit(restore_termios);
+        };
+
         enter_raw_mode(libc::STDIN_FILENO);
     }
 
-    (child, termios)
+    child
 }
 
 fn exec_shell(shell: String) {
@@ -47,4 +54,9 @@ fn enter_raw_mode(fd: libc::c_int) {
     new_termios.c_cc[VTIME] = 0;
 
     tcsetattr(libc::STDIN_FILENO, TCSANOW, &new_termios).unwrap();
+}
+
+extern "C" fn restore_termios() {
+    let termios = unsafe { termios_to_restore.unwrap() };
+    let _ = tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios);
 }

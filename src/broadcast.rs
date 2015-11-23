@@ -9,7 +9,6 @@ use pty;
 use libc;
 use libc_ext;
 use nix::sys::signal;
-use termios::*;
 
 use pty_spawn;
 use winsize;
@@ -62,9 +61,46 @@ impl From<io::Error> for Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
+static mut sigwinch_count: i32 = 0;
+extern "C" fn handle_sigwinch(_: i32) {
+    unsafe {
+        sigwinch_count += 1;
+    }
+}
+
+fn build_winsize_notification() -> Result<message::Notification> {
+    let winsize = try!(winsize::from_fd(libc::STDIN_FILENO));
+    let notification = message::Notification::Output(format!("\x1b[8;{};{}t",
+                                                             winsize.ws_row,
+                                                             winsize.ws_col));
+
+    Ok(notification)
+}
+
+struct InputHandler {
+    input: io::Stdin,
+    child: pty::Child,
+}
+
+struct OutputHandler {
+    output: io::Stdout,
+    child: pty::Child,
+    sender: Sender<Option<message::Notification>>,
+}
+
+struct ResizeHandler {
+    child: pty::Child,
+    sender: Sender<Option<message::Notification>>,
+}
+
+struct NotificationHandler {
+    stream: TcpStream,
+    sender: Sender<Option<message::Notification>>,
+}
+
 pub fn execute(host: String, port: i32, channel_name: String) -> Result<()> {
     let mut stream = try!(TcpStream::connect(&format!("{}:{}", host, port)[..]));
-    let (child, termios) = pty_spawn::pty_spawn();
+    let child = pty_spawn::pty_spawn();
     let (sender, receiver) = channel();
 
     let request = message::JoinRequest::Broadcast(channel_name.clone());
@@ -87,46 +123,8 @@ pub fn execute(host: String, port: i32, channel_name: String) -> Result<()> {
     }
 
     try!(child.wait());
-    try!(tcsetattr(libc::STDIN_FILENO, TCSANOW, &termios));
 
     Ok(())
-}
-
-fn build_winsize_notification() -> Result<message::Notification> {
-    let winsize = try!(winsize::from_fd(libc::STDIN_FILENO));
-    let notification = message::Notification::Output(format!("\x1b[8;{};{}t",
-                                                             winsize.ws_row,
-                                                             winsize.ws_col));
-
-    Ok(notification)
-}
-
-static mut sigwinch_count: i32 = 0;
-extern "C" fn handle_sigwinch(_: i32) {
-    unsafe {
-        sigwinch_count += 1;
-    }
-}
-
-struct InputHandler {
-    input: io::Stdin,
-    child: pty::Child,
-}
-
-struct OutputHandler {
-    output: io::Stdout,
-    child: pty::Child,
-    sender: Sender<Option<message::Notification>>,
-}
-
-struct ResizeHandler {
-    child: pty::Child,
-    sender: Sender<Option<message::Notification>>,
-}
-
-struct NotificationHandler {
-    stream: TcpStream,
-    sender: Sender<Option<message::Notification>>,
 }
 
 impl InputHandler {
