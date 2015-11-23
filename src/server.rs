@@ -149,6 +149,8 @@ impl BroadcastHandler {
             handler.process().unwrap_or_else(|e| {
                 println!("{}", e);
             });
+
+            handler.shutdown();
         });
     }
 
@@ -159,8 +161,6 @@ impl BroadcastHandler {
 
         try!(self.spawn_relay(sender.clone()));
         try!(self.broadcast(receiver));
-
-        try!(self.stream.shutdown(Shutdown::Both));
 
         Ok(())
     }
@@ -209,6 +209,13 @@ impl BroadcastHandler {
         }
 
         Ok(())
+    }
+
+    fn shutdown(&mut self) {
+        let mut channel = self.channel.lock().unwrap();
+
+        let _ = self.stream.shutdown(Shutdown::Both);
+        channel.broadcaster = None;
     }
 }
 
