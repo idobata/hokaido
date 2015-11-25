@@ -169,20 +169,15 @@ impl BroadcastHandler {
         let stream = try!(self.stream.try_clone());
 
         thread::spawn(move || -> Result<()> {
-            loop {
-                match message::Notification::receive(&stream) {
-                    Ok(notification) => {
-                        match notification {
-                            message::Notification::Output(data)   => {
-                                sender.send(Some(message::Notification::Output(data))).unwrap_or_else(|e| println!("{}", e));
-                            },
-                            message::Notification::Closed(reason) => {
-                                try!(sender.send(Some(message::Notification::Closed(reason))));
-                            },
-                            _ => break,
-                        }
-                    },
-                    Err(_) => break,
+            while let Ok(notification) = message::Notification::receive(&stream) {
+                match notification {
+                    message::Notification::Output(data)   => {
+                        sender.send(Some(message::Notification::Output(data))).unwrap_or_else(|e| println!("{}", e));
+                    }
+                    message::Notification::Closed(reason) => {
+                        try!(sender.send(Some(message::Notification::Closed(reason))));
+                    }
+                    _ => break,
                 }
             };
 
@@ -200,7 +195,7 @@ impl BroadcastHandler {
                 Some(notification) => {
                     let mut channel = self.channel.lock().unwrap();
 
-                    for mut watcher in channel.watchers.iter_mut() {
+                    for watcher in &mut channel.watchers {
                         let _ = notification.send(watcher);
                     }
                 },
