@@ -174,7 +174,7 @@ impl OutputHandler {
 
     fn process(&mut self) -> Result<()> {
         let mut pty = self.child.pty().unwrap();
-        let mut buf = [0; 128];
+        let mut buf = [0; 1024 * 10];
 
         loop {
             let nread = pty.read(&mut buf).unwrap_or(0);
