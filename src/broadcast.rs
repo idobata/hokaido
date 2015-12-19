@@ -182,25 +182,17 @@ impl OutputHandler {
             if nread <= 0 {
                 break;
             } else {
-                let string = String::from_utf8_lossy(&buf[..nread]).into_owned();
+                try!(self.output.write(&buf[..nread]));
+                let _ = self.output.flush();
 
-                self.handle_output(string);
+                let string = String::from_utf8_lossy(&buf[..nread]).into_owned();
+                let _ = self.sender.send(Some(message::Notification::Output(string)));
             }
         }
 
-        self.handle_terminate();
+        let _ = self.sender.send(None);
 
         Ok(())
-    }
-
-    fn handle_output(&mut self, string: String) {
-        print!("{}", string);
-        let _ = self.output.flush();
-        let _ = self.sender.send(Some(message::Notification::Output(string)));
-    }
-
-    fn handle_terminate(&self) {
-        let _ = self.sender.send(None);
     }
 }
 
