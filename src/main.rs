@@ -10,13 +10,11 @@ extern crate docopt;
 extern crate libc;
 extern crate nix;
 extern crate pty;
+extern crate pty_shell;
 extern crate rmp_serialize as msgpack;
 extern crate rustc_serialize;
 extern crate termios;
 
-mod libc_ext;
-mod pty_spawn;
-mod winsize;
 mod message;
 mod broadcast;
 mod server;
