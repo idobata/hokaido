@@ -3,7 +3,7 @@ use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 
 use pty;
-use pty_shell::{self, winsize, PtyProxy};
+use pty_shell::{self, winsize, PtyShell};
 use libc;
 
 use message;
