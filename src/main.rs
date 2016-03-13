@@ -15,6 +15,10 @@ extern crate rmp_serialize as msgpack;
 extern crate rustc_serialize;
 extern crate termios;
 
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
 mod message;
 mod broadcast;
 mod server;
@@ -47,6 +51,8 @@ struct Args {
 
 fn main() {
     let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+
+    env_logger::init().unwrap();
 
     match args.arg_command {
         Some(command_name) => {

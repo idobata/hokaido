@@ -10,7 +10,9 @@ keywords = ['terminal', 'tool']
 
 [dependencies]
 docopt='0.6'
+env_logger = '0.3'
 libc='0.2.6'
+log = '0.3'
 nix='0.3.9'
 pty='0.1.6'
 pty-shell='0.1.3'

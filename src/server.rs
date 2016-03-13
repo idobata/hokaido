@@ -1,6 +1,7 @@
 use std;
 use std::collections::HashMap;
 use std::{fmt, io, result};
+use std::fmt::Display;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -29,7 +30,7 @@ impl std::error::Error for Error {
     }
 }
 
-impl fmt::Display for Error {
+impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         std::error::Error::description(self).fmt(f)
     }
@@ -59,6 +60,8 @@ pub fn execute(host: String, port: i32) -> Result<()> {
     let listener = try!(TcpListener::bind(&format!("{}:{}", host, port)[..]));
     let mut channels = Channels { channels: HashMap::new() };
 
+    info!("Starting hokaido server on {}", listener.local_addr().unwrap());
+
     for stream in listener.incoming() {
         let _ = handle_client(stream, &mut channels);
     }
@@ -69,6 +72,8 @@ pub fn execute(host: String, port: i32) -> Result<()> {
 fn handle_client(stream: result::Result<TcpStream, io::Error>, channels: &mut Channels) -> Result<()> {
     let stream = try!(stream);
     let request = try!(message::JoinRequest::receive(&stream));
+
+    info!("{} Connected", stream.peer_addr().unwrap());
 
     match request {
         message::JoinRequest::Broadcast(ch) =>
@@ -122,6 +127,8 @@ impl Channel {
     fn takeover(&mut self, stream: TcpStream) -> Result<()> {
         match self.broadcaster.as_mut() {
             Some(mut current) => {
+                info!("{} Takeover from {}", stream.peer_addr().unwrap(), current.peer_addr().unwrap());
+
                 try!(message::Notification::Closed("Broadcaster has changed".to_owned()).send(&mut current));
                 try!(current.shutdown(Shutdown::Both));
             }
@@ -135,6 +142,8 @@ impl Channel {
 
 impl BroadcastHandler {
     fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
+        info!("{} Broadcast", stream.peer_addr().unwrap());
+
         let mut handler = BroadcastHandler {
             stream: stream.try_clone().unwrap(),
             channel: channel.clone(),
@@ -147,9 +156,10 @@ impl BroadcastHandler {
 
         thread::spawn(move || {
             handler.process().unwrap_or_else(|e| {
-                println!("{}", e);
+                warn!("{}", e);
             });
 
+            info!("{} Shutting down", handler.stream.peer_addr().unwrap());
             handler.shutdown();
         });
     }
@@ -172,14 +182,13 @@ impl BroadcastHandler {
             while let Ok(notification) = message::Notification::receive(&stream) {
                 match notification {
                     message::Notification::Output(data)   => {
-                        sender.send(Some(message::Notification::Output(data))).unwrap_or_else(|e| println!("{}", e));
-                    }
-                    message::Notification::Closed(reason) => {
-                        try!(sender.send(Some(message::Notification::Closed(reason))));
+                        sender.send(Some(message::Notification::Output(data))).unwrap_or_else(|e| warn!("{}", e));
                     }
                     _ => break,
                 }
             };
+
+            info!("{} Relay has stopped", stream.peer_addr().unwrap());
 
             try!(sender.send(None));
 
@@ -216,6 +225,8 @@ impl BroadcastHandler {
 
 impl WatchHandler {
     fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
+        info!("{} Watch", stream.peer_addr().unwrap());
+
         let mut handler = WatchHandler {
             stream: stream.try_clone().unwrap(),
             channel: channel.clone(),
@@ -223,7 +234,7 @@ impl WatchHandler {
 
         thread::spawn(move || {
             handler.process().unwrap_or_else(|e| {
-                println!("{}", e);
+                warn!("{}", e);
             });
         });
     }
