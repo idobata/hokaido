@@ -116,6 +116,7 @@ impl Channels {
                 watchers: Vec::new(),
             };
 
+            info!("Creating new channel: {}", ch);
             self.channels.insert(ch.to_owned(), Arc::new(Mutex::new(channel)));
 
             self.fetch(&ch)
@@ -132,7 +133,7 @@ impl Channel {
                 try!(message::Notification::Closed("Broadcaster has changed".to_owned()).send(&mut current));
                 try!(current.shutdown(Shutdown::Both));
             }
-            None => (),
+            None => ()
         }
 
         self.broadcaster = Some(stream);
@@ -160,7 +161,7 @@ impl BroadcastHandler {
             });
 
             info!("{} Shutting down", handler.stream.peer_addr().unwrap());
-            handler.shutdown();
+            let _ = handler.stream.shutdown(Shutdown::Both);
         });
     }
 
@@ -188,7 +189,7 @@ impl BroadcastHandler {
                 }
             };
 
-            info!("{} Relay has stopped", stream.peer_addr().unwrap());
+            info!("{} Relay stopped", stream.peer_addr().unwrap());
 
             try!(sender.send(None));
 
@@ -213,13 +214,6 @@ impl BroadcastHandler {
         }
 
         Ok(())
-    }
-
-    fn shutdown(&mut self) {
-        let mut channel = self.channel.lock().unwrap();
-
-        let _ = self.stream.shutdown(Shutdown::Both);
-        channel.broadcaster = None;
     }
 }
 
@@ -250,7 +244,7 @@ impl WatchHandler {
             Some(mut broadcaster) => message::Notification::WatcherJoined("".to_owned())
                                          .send(&mut broadcaster)
                                          .unwrap(),
-            None => (),
+            None => ()
         }
 
         Ok(())
