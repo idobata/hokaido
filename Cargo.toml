@@ -1,6 +1,6 @@
 [package]
 name = 'hokaido'
-version = '0.0.7'
+version = '0.0.8'
 authors = ['Hika Hibariya <hibariya@gmail.com>']
 repository = 'https://github.com/idobata/hokaido'
 homepage = 'https://github.com/idobata/hokaido'
