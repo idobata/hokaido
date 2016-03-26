@@ -127,16 +127,22 @@ impl Channels {
 impl Channel {
     fn takeover(&mut self, stream: TcpStream) -> Result<()> {
         match self.broadcaster.as_mut() {
-            Some(mut current) => {
-                info!("{} Takeover from {}", stream.peer_addr().unwrap(), current.peer_addr().unwrap());
+            Some(mut former) => {
+                match former.peer_addr() {
+                    Ok(addr) => {
+                        info!("{} Takeover from {}", stream.peer_addr().unwrap(), addr);
 
-                try!(message::Notification::Closed("Broadcaster has changed".to_owned()).send(&mut current));
-                try!(current.shutdown(Shutdown::Both));
+                        try!(message::Notification::Closed("Broadcaster has changed".to_owned()).send(&mut former));
+                        try!(former.shutdown(Shutdown::Both));
+                    }
+                    Err(_) => () // former has gone
+                }
             }
-            None => ()
+            None => () // no broadcaster yet
         }
 
         self.broadcaster = Some(stream);
+
         Ok(())
     }
 }
