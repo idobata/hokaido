@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::{fmt, io, result};
 use std::fmt::Display;
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::sync::mpsc::{self, channel, Receiver, Sender};
@@ -71,9 +72,11 @@ pub fn execute(host: String, port: i32) -> Result<()> {
 
 fn handle_client(stream: result::Result<TcpStream, io::Error>, channels: &mut Channels) -> Result<()> {
     let stream = try!(stream);
-    let request = try!(message::JoinRequest::receive(&stream));
 
     info!("{} Connected", stream.peer_addr().unwrap());
+    stream.set_write_timeout(Some(Duration::new(10, 0))).unwrap();
+
+    let request = try!(message::JoinRequest::receive(&stream));
 
     match request {
         message::JoinRequest::Broadcast(ch) =>
