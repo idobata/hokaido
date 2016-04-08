@@ -79,10 +79,12 @@ fn handle_client(stream: result::Result<TcpStream, io::Error>, channels: &mut Ch
     let request = try!(message::JoinRequest::receive(&stream));
 
     match request {
-        message::JoinRequest::Broadcast(ch) =>
-            BroadcastHandler::spawn(&stream, channels.fetch(&ch)),
-        message::JoinRequest::Watch(ch) =>
-            WatchHandler::spawn(&stream, channels.fetch(&ch)),
+        message::JoinRequest::Broadcast(ch) => {
+            let _ = BroadcastHandler::spawn(&stream, channels.fetch(&ch));
+        }
+        message::JoinRequest::Watch(ch) => {
+            let _ = WatchHandler::spawn(&stream, channels.fetch(&ch));
+        }
     }
 
     Ok(())
@@ -151,18 +153,21 @@ impl Channel {
 }
 
 impl BroadcastHandler {
-    fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
+    fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) -> Result<()> {
         info!("{} Broadcast", stream.peer_addr().unwrap());
 
         let mut handler = BroadcastHandler {
-            stream: stream.try_clone().unwrap(),
+            stream: try!(stream.try_clone()),
             channel: channel.clone(),
         };
 
-        let _ = channel.lock().and_then(|mut ch| {
-            let _ = ch.takeover(stream.try_clone().unwrap());
-            Ok(ch)
-        });
+
+        match channel.lock() {
+            Ok(mut ch) => {
+                let _ = ch.takeover(try!(stream.try_clone()));
+            }
+            Err(_) => ()
+        }
 
         thread::spawn(move || {
             handler.process().unwrap_or_else(|e| {
@@ -172,6 +177,8 @@ impl BroadcastHandler {
             info!("{} Shutting down", handler.stream.peer_addr().unwrap());
             let _ = handler.stream.shutdown(Shutdown::Both);
         });
+
+        Ok(())
     }
 
     fn process(&mut self) -> Result<()> {
@@ -227,11 +234,11 @@ impl BroadcastHandler {
 }
 
 impl WatchHandler {
-    fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) {
+    fn spawn(stream: &TcpStream, channel: &Arc<Mutex<Channel>>) -> Result<()> {
         info!("{} Watch", stream.peer_addr().unwrap());
 
         let mut handler = WatchHandler {
-            stream: stream.try_clone().unwrap(),
+            stream: try!(stream.try_clone()),
             channel: channel.clone(),
         };
 
@@ -240,6 +247,8 @@ impl WatchHandler {
                 warn!("{}", e);
             });
         });
+
+        Ok(())
     }
 
     fn process(&mut self) -> Result<()> {
